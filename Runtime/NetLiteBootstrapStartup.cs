@@ -63,15 +63,15 @@ namespace Validosik.Core.NetLite.Unity
                 ReconnectDelayMs = reconnect != null ? Math.Max(0, reconnect.TransportReconnectDelayMs) : 500,
                 MaxConnectAttempts = reconnect != null ? Math.Max(1, reconnect.TransportMaxConnectAttempts) : 10,
                 AllowPeerAddressChange = AllowPeerAddressChange,
-                SimulateLatency = runtimeDebug != null && runtimeDebug.SimulateLatency,
-                SimulationMinLatencyMs = runtimeDebug != null ? Math.Max(0, runtimeDebug.MinLatencyMs) : 30,
+                SimulateLatency = runtimeDebug != null && runtimeDebug.EffectiveSimulateLatency,
+                SimulationMinLatencyMs = runtimeDebug != null ? Math.Max(0, runtimeDebug.EffectiveMinLatencyMs) : 30,
                 SimulationMaxLatencyMs = runtimeDebug != null
-                    ? Math.Max(Math.Max(0, runtimeDebug.MinLatencyMs), runtimeDebug.MaxLatencyMs)
+                    ? Math.Max(Math.Max(0, runtimeDebug.EffectiveMinLatencyMs), runtimeDebug.EffectiveMaxLatencyMs)
                     : 100,
-                SimulatePacketLoss = runtimeDebug != null && runtimeDebug.SimulatePacketLoss,
+                SimulatePacketLoss = runtimeDebug != null && runtimeDebug.EffectiveSimulatePacketLoss,
                 SimulationPacketLossChancePercent = runtimeDebug != null
-                    ? Mathf.Clamp(runtimeDebug.PacketLossPercent, 0, 100)
-                    : 10
+                    ? runtimeDebug.EffectivePacketLossPercent
+                    : 0
             };
         }
 

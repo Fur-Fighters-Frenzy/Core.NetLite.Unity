@@ -129,13 +129,14 @@ namespace Validosik.Core.NetLite.Unity
         private string BuildText()
         {
             _builder.Clear();
-            AppendLine("NetLite HUD  F3 toggle");
+            AppendLine("NetLite HUD  F3 overlay  F4/F5 delay presets");
             AppendLine($"Role: {_bootstrap.Role}");
             AppendLine($"Reconnect: {_bootstrap.ReconnectState} cycles={_bootstrap.ReconnectCyclesStarted}");
             AppendLine($"ReconnectCfg: {_bootstrap.Reconnect.Enabled} init={_bootstrap.Reconnect.InitialDelaySeconds:0.##} retry={_bootstrap.Reconnect.RetryDelaySeconds:0.##} max={_bootstrap.Reconnect.MaxReconnectCycles}");
             AppendLine($"ConnectRetry: {_bootstrap.Reconnect.TransportReconnectDelayMs} ms attempts={_bootstrap.Reconnect.TransportMaxConnectAttempts}");
             AppendLine($"Session: {_bootstrap.Startup.SessionId}");
             AppendLine($"Key: {_bootstrap.Startup.ConnectionKey}");
+            AppendLine($"Preset1 AutoStart: {_bootstrap.RuntimeDebug.EnablePresetOneOnStart}");
 
             var node = _bootstrap.Node;
             if (node == null)
@@ -152,8 +153,11 @@ namespace Validosik.Core.NetLite.Unity
             AppendLine($"Peers: {node.ConnectedPeerCount}");
             AppendLine($"ListenPort: {node.LocalPort}");
             AppendLine($"Remote: {_bootstrap.Remote.Host}:{_bootstrap.Remote.Port}");
-            AppendLine($"SimLatency: {_bootstrap.RuntimeDebug.SimulateLatency} {_bootstrap.RuntimeDebug.MinLatencyMs}-{_bootstrap.RuntimeDebug.MaxLatencyMs} ms");
-            AppendLine($"SimLoss: {_bootstrap.RuntimeDebug.SimulatePacketLoss} {_bootstrap.RuntimeDebug.PacketLossPercent}%");
+            AppendLine($"Preset1: {_bootstrap.RuntimeDebug.PresetF4MinLatencyMs}-{_bootstrap.RuntimeDebug.PresetF4MaxLatencyMs} ms loss={_bootstrap.RuntimeDebug.PresetF4PacketLossPercent}%");
+            AppendLine($"Preset2: {_bootstrap.RuntimeDebug.PresetF5MinLatencyMs}-{_bootstrap.RuntimeDebug.PresetF5MaxLatencyMs} ms loss={_bootstrap.RuntimeDebug.PresetF5PacketLossPercent}%");
+            AppendLine($"ActivePreset: {_bootstrap.RuntimeDebug.ActivePresetLabel}");
+            AppendLine($"SimLatency: {_bootstrap.RuntimeDebug.EffectiveSimulateLatency} {_bootstrap.RuntimeDebug.EffectiveMinLatencyMs}-{_bootstrap.RuntimeDebug.EffectiveMaxLatencyMs} ms");
+            AppendLine($"SimLoss: {_bootstrap.RuntimeDebug.EffectiveSimulatePacketLoss} {_bootstrap.RuntimeDebug.EffectivePacketLossPercent}%");
 
             if (_bootstrap.TryGetAuthorityMetrics(out var metrics) && node.AuthorityPlayerId != PlayerId.None)
             {

@@ -83,26 +83,102 @@ namespace Validosik.Core.NetLite.Unity
     }
 
     [Serializable]
-    public sealed class NetLiteRuntimeDebugConfig
+    public sealed class NetLiteLatencyHotkeyConfig
     {
-        public bool SimulateLatency;
-        public int MinLatencyMs = 30;
+        public int MinLatencyMs = 100;
         public int MaxLatencyMs = 100;
-        public bool SimulatePacketLoss;
-        public int PacketLossPercent = 10;
+        public int PacketLossPercent;
 
-        public void CopyFrom(NetLiteRuntimeDebugConfig other)
+        public void CopyFrom(NetLiteLatencyHotkeyConfig other)
         {
             if (other == null)
             {
                 return;
             }
 
-            SimulateLatency = other.SimulateLatency;
             MinLatencyMs = other.MinLatencyMs;
             MaxLatencyMs = other.MaxLatencyMs;
-            SimulatePacketLoss = other.SimulatePacketLoss;
             PacketLossPercent = other.PacketLossPercent;
+        }
+    }
+
+    [Serializable]
+    public sealed class NetLiteRuntimeDebugConfig
+    {
+        public bool EnablePresetOneOnStart;
+
+        [FormerlySerializedAs("DelayPresetF4")]
+        public NetLiteLatencyHotkeyConfig PresetF4 = new();
+
+        [FormerlySerializedAs("DelayPresetF5")]
+        public NetLiteLatencyHotkeyConfig PresetF5 = new() { MinLatencyMs = 250, MaxLatencyMs = 250 };
+
+        [HideInInspector, FormerlySerializedAs("SimulateLatency")]
+        public bool LegacySimulateLatency;
+
+        [HideInInspector, FormerlySerializedAs("MinLatencyMs")]
+        public int LegacyMinLatencyMs = 30;
+
+        [HideInInspector, FormerlySerializedAs("MaxLatencyMs")]
+        public int LegacyMaxLatencyMs = 100;
+
+        [HideInInspector, FormerlySerializedAs("SimulatePacketLoss")]
+        public bool LegacySimulatePacketLoss;
+
+        [HideInInspector, FormerlySerializedAs("PacketLossPercent")]
+        public int LegacyPacketLossPercent = 10;
+
+        public void CopyFrom(NetLiteRuntimeDebugConfig other)
+        {
+            EnsureDelayPresets();
+            if (other == null)
+            {
+                return;
+            }
+
+            EnablePresetOneOnStart = other.EnablePresetOneOnStart;
+            PresetF4.CopyFrom(other.PresetF4);
+            PresetF5.CopyFrom(other.PresetF5);
+
+            if (!other.TryGetLegacyPresetOneOverride(out var legacyPreset, out var enableOnStart))
+            {
+                return;
+            }
+
+            PresetF4.CopyFrom(legacyPreset);
+            if (enableOnStart)
+            {
+                EnablePresetOneOnStart = true;
+            }
+        }
+
+        internal bool TryGetLegacyPresetOneOverride(out NetLiteLatencyHotkeyConfig preset, out bool enableOnStart)
+        {
+            preset = null;
+            enableOnStart = LegacySimulateLatency || LegacySimulatePacketLoss;
+            var hasLegacyValues = enableOnStart
+                || LegacyMinLatencyMs != 30
+                || LegacyMaxLatencyMs != 100
+                || LegacyPacketLossPercent != 10;
+
+            if (!hasLegacyValues)
+            {
+                return false;
+            }
+
+            preset = new NetLiteLatencyHotkeyConfig
+            {
+                MinLatencyMs = LegacyMinLatencyMs,
+                MaxLatencyMs = LegacyMaxLatencyMs,
+                PacketLossPercent = LegacyPacketLossPercent
+            };
+            return true;
+        }
+
+        private void EnsureDelayPresets()
+        {
+            PresetF4 ??= new NetLiteLatencyHotkeyConfig();
+            PresetF5 ??= new NetLiteLatencyHotkeyConfig { MinLatencyMs = 250, MaxLatencyMs = 250 };
         }
     }
 

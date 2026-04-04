@@ -312,21 +312,6 @@ namespace Validosik.Core.NetLite.Unity
             ApplyLiveNodeOptions();
         }
 
-        public void SetLatencySimulation(bool enabled, int minLatencyMs, int maxLatencyMs)
-        {
-            RuntimeDebug.SimulateLatency = enabled;
-            RuntimeDebug.MinLatencyMs = minLatencyMs;
-            RuntimeDebug.MaxLatencyMs = maxLatencyMs;
-            ApplyLiveNodeOptions();
-        }
-
-        public void SetPacketLossSimulation(bool enabled, int packetLossPercent)
-        {
-            RuntimeDebug.SimulatePacketLoss = enabled;
-            RuntimeDebug.PacketLossPercent = packetLossPercent;
-            ApplyLiveNodeOptions();
-        }
-
         public bool TryGetAuthorityMetrics(out NetLitePeerMetrics metrics)
         {
             metrics = default;
