@@ -4,7 +4,8 @@
   "references": [
     "Validosik.Core.NetLite",
     "Validosik.Core.NetLite.Simulation",
-    "LiteNetLib"
+    "LiteNetLib",
+    "UnityEngine.UI"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
@@ -20,6 +21,11 @@
       "name": "com.revenantx.litenetlib",
       "expression": "2.1.2",
       "define": "LITENETLIB_ENABLED"
+    },
+    {
+      "name": "com.unity.ugui",
+      "expression": "1.0.0",
+      "define": "UGUI_ENABLED"
     }
   ],
   "noEngineReferences": false

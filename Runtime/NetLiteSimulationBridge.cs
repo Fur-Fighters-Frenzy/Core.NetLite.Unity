@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using Validosik.Core.NetLite;
@@ -10,7 +10,6 @@ namespace Validosik.Core.NetLite.Unity
     public sealed class NetLiteSimulationBridge : MonoBehaviour
     {
         [SerializeField] private NetLiteBootstrap _bootstrap;
-        [SerializeField] private bool _autoFindBootstrap = true;
         [SerializeField] private bool _autoDiscoverSystems = true;
         [SerializeField] private bool _includeInactiveChildren = true;
         [SerializeField] private bool _rebuildOnSessionEstablished = true;
@@ -205,7 +204,7 @@ namespace Validosik.Core.NetLite.Unity
 
         private void ResolveBootstrap()
         {
-            if (_bootstrap == null && _autoFindBootstrap)
+            if (_bootstrap == null)
             {
                 _bootstrap = GetComponent<NetLiteBootstrap>() ?? FindObjectOfType<NetLiteBootstrap>();
             }

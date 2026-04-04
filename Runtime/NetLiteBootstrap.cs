@@ -1,25 +1,60 @@
-﻿using System;
+using System;
 using LiteNetLib;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Validosik.Core.NetLite;
 using Validosik.Core.NetLite.Session;
 using Validosik.Core.NetLite.Stats;
 using Validosik.Core.NetLite.Types;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace Validosik.Core.NetLite.Unity
 {
+    [DefaultExecutionOrder(-100)]
+    [DisallowMultipleComponent]
+    [RequireComponent(typeof(NetLiteBootstrapRunner))]
+    [RequireComponent(typeof(NetLiteBootstrapStartup))]
+    [RequireComponent(typeof(NetLiteBootstrapRemote))]
+    [RequireComponent(typeof(NetLiteBootstrapRuntimeDebug))]
+    [RequireComponent(typeof(NetLiteBootstrapReconnect))]
     public sealed class NetLiteBootstrap : MonoBehaviour
     {
         [SerializeField] private NetLiteBootstrapPreset _preset;
-        [SerializeField] private bool _applyPresetOnAwake = true;
-        [SerializeField] private bool _autoStart = true;
-        [SerializeField] private NetworkRole _autoStartRole = NetworkRole.Host;
-        [SerializeField] private bool _autoUpdateNode = true;
-        [SerializeField] private bool _useUnscaledTime = true;
-        [SerializeField] private NetLiteStartupConfig _startup = new();
-        [SerializeField] private NetLiteRemoteEndpointConfig _remote = new();
-        [SerializeField] private NetLiteRuntimeDebugConfig _runtimeDebug = new();
-        [SerializeField] private NetLiteReconnectConfig _reconnect = new();
+
+        [SerializeField, HideInInspector, FormerlySerializedAs("_autoStart")]
+        private bool _legacyAutoStart = true;
+
+        [SerializeField, HideInInspector, FormerlySerializedAs("_autoStartRole")]
+        private NetworkRole _legacyAutoStartRole = NetworkRole.Host;
+
+        [SerializeField, HideInInspector, FormerlySerializedAs("_autoUpdateNode")]
+        private bool _legacyAutoUpdateNode = true;
+
+        [SerializeField, HideInInspector, FormerlySerializedAs("_useUnscaledTime")]
+        private bool _legacyUseUnscaledTime = true;
+
+        [SerializeField, HideInInspector, FormerlySerializedAs("_startup")]
+        private NetLiteStartupConfig _legacyStartup = new();
+
+        [SerializeField, HideInInspector, FormerlySerializedAs("_remote")]
+        private NetLiteRemoteEndpointConfig _legacyRemote = new();
+
+        [SerializeField, HideInInspector, FormerlySerializedAs("_runtimeDebug")]
+        private NetLiteRuntimeDebugConfig _legacyRuntimeDebug = new();
+
+        [SerializeField, HideInInspector, FormerlySerializedAs("_reconnect")]
+        private NetLiteReconnectConfig _legacyReconnect = new();
+
+        [SerializeField, HideInInspector] private bool _legacySettingsMigrated;
+
+        private NetLiteBootstrapRunner _runner;
+        private NetLiteBootstrapStartup _startup;
+        private NetLiteBootstrapRemote _remote;
+        private NetLiteBootstrapRuntimeDebug _runtimeDebug;
+        private NetLiteBootstrapReconnect _reconnect;
 
         private Func<NetLiteConnectionApprovalContext, NetLiteConnectionApprovalResult> _connectionApproval;
         private float _nextReconnectAt = -1f;
@@ -40,10 +75,51 @@ namespace Validosik.Core.NetLite.Unity
         public NetworkRole Role { get; private set; }
         public NetLiteReconnectState ReconnectState { get; private set; } = NetLiteReconnectState.Disabled;
         public int ReconnectCyclesStarted => _reconnectCyclesStarted;
-        public NetLiteStartupConfig Startup => _startup;
-        public NetLiteRemoteEndpointConfig Remote => _remote;
-        public NetLiteRuntimeDebugConfig RuntimeDebug => _runtimeDebug;
-        public NetLiteReconnectConfig Reconnect => _reconnect;
+        public NetLiteBootstrapRunner Runner
+        {
+            get
+            {
+                ResolveComponents(createIfMissing: true);
+                return _runner;
+            }
+        }
+
+        public NetLiteBootstrapStartup Startup
+        {
+            get
+            {
+                ResolveComponents(createIfMissing: true);
+                return _startup;
+            }
+        }
+
+        public NetLiteBootstrapRemote Remote
+        {
+            get
+            {
+                ResolveComponents(createIfMissing: true);
+                return _remote;
+            }
+        }
+
+        public NetLiteBootstrapRuntimeDebug RuntimeDebug
+        {
+            get
+            {
+                ResolveComponents(createIfMissing: true);
+                return _runtimeDebug;
+            }
+        }
+
+        public NetLiteBootstrapReconnect Reconnect
+        {
+            get
+            {
+                ResolveComponents(createIfMissing: true);
+                return _reconnect;
+            }
+        }
+
         public bool IsRunning => Node != null && Node.IsRunning;
 
         public Func<NetLiteConnectionApprovalContext, NetLiteConnectionApprovalResult> ConnectionApproval
@@ -59,10 +135,17 @@ namespace Validosik.Core.NetLite.Unity
             }
         }
 
+        private void Reset()
+        {
+            ResolveComponents(createIfMissing: true);
+            MigrateLegacySettingsIfNeeded();
+        }
+
         private void Awake()
         {
-            EnsureConfigs();
-            if (_applyPresetOnAwake)
+            ResolveComponents(createIfMissing: true);
+            MigrateLegacySettingsIfNeeded();
+            if (_preset != null)
             {
                 ApplyPreset();
             }
@@ -70,19 +153,20 @@ namespace Validosik.Core.NetLite.Unity
 
         private void Start()
         {
-            if (_autoStart && _autoStartRole != NetworkRole.None)
+            if (Runner.ShouldAutoStart)
             {
-                StartRole(_autoStartRole);
+                StartRole(Runner.StartRole);
             }
         }
 
         private void Update()
         {
-            if (_autoUpdateNode && Node != null)
+            if (Runner.AutoUpdateNode && Node != null)
             {
-                var deltaTime = _useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
-                Node.Update(deltaTime);
+                Node.Update(Runner.GetDeltaTime());
             }
+
+            ApplyLiveNodeOptions();
 
             if (Role == NetworkRole.Client)
             {
@@ -92,18 +176,35 @@ namespace Validosik.Core.NetLite.Unity
 
         private void OnDestroy() => Stop();
 
+#if UNITY_EDITOR
+        private void OnValidate()
+        {
+            ResolveComponents(createIfMissing: true);
+            MigrateLegacySettingsIfNeeded();
+        }
+#endif
+
         public void ApplyPreset()
         {
-            EnsureConfigs();
+            ResolveComponents(createIfMissing: true);
             if (_preset == null)
             {
                 return;
             }
 
-            _startup.CopyFrom(_preset.Startup);
-            _remote.CopyFrom(_preset.Remote);
-            _runtimeDebug.CopyFrom(_preset.RuntimeDebug);
-            _reconnect.CopyFrom(_preset.Reconnect);
+            var startupPreset = _preset.Startup;
+            _startup.Apply(startupPreset);
+            _remote.Apply(_preset.Remote);
+            _runtimeDebug.Apply(_preset.RuntimeDebug);
+            _reconnect.Apply(_preset.Reconnect);
+
+            if (startupPreset != null && startupPreset.TryGetLegacyReconnectOverrides(out var legacyReconnectDelayMs, out var legacyMaxConnectAttempts))
+            {
+                _reconnect.TransportReconnectDelayMs = legacyReconnectDelayMs;
+                _reconnect.TransportMaxConnectAttempts = legacyMaxConnectAttempts;
+            }
+
+            ApplyLiveNodeOptions();
         }
 
         public bool StartRole(NetworkRole role)
@@ -123,13 +224,13 @@ namespace Validosik.Core.NetLite.Unity
 
         public bool StartClient()
         {
-            if (!PrepareNode(NetworkRole.Client, false, Math.Max(0, _startup.ClientListenPort)))
+            if (!PrepareNode(NetworkRole.Client, false, Math.Max(0, Startup.ClientListenPort)))
             {
                 return false;
             }
 
             ResetReconnectTracking();
-            if (!_reconnect.Enabled)
+            if (!Reconnect.Enabled)
             {
                 SetReconnectState(NetLiteReconnectState.Disabled);
             }
@@ -200,30 +301,30 @@ namespace Validosik.Core.NetLite.Unity
 
         public void SetRemoteEndpoint(string host, int port)
         {
-            _remote.Host = host;
-            _remote.Port = port;
+            Remote.Host = host;
+            Remote.Port = port;
         }
 
         public void SetRuntimeDebugConfig(NetLiteRuntimeDebugConfig config)
         {
-            EnsureConfigs();
-            _runtimeDebug.CopyFrom(config);
-            ApplyRuntimeDebugConfig();
+            ResolveComponents(createIfMissing: true);
+            _runtimeDebug.Apply(config);
+            ApplyLiveNodeOptions();
         }
 
         public void SetLatencySimulation(bool enabled, int minLatencyMs, int maxLatencyMs)
         {
-            _runtimeDebug.SimulateLatency = enabled;
-            _runtimeDebug.MinLatencyMs = minLatencyMs;
-            _runtimeDebug.MaxLatencyMs = maxLatencyMs;
-            ApplyRuntimeDebugConfig();
+            RuntimeDebug.SimulateLatency = enabled;
+            RuntimeDebug.MinLatencyMs = minLatencyMs;
+            RuntimeDebug.MaxLatencyMs = maxLatencyMs;
+            ApplyLiveNodeOptions();
         }
 
         public void SetPacketLossSimulation(bool enabled, int packetLossPercent)
         {
-            _runtimeDebug.SimulatePacketLoss = enabled;
-            _runtimeDebug.PacketLossPercent = packetLossPercent;
-            ApplyRuntimeDebugConfig();
+            RuntimeDebug.SimulatePacketLoss = enabled;
+            RuntimeDebug.PacketLossPercent = packetLossPercent;
+            ApplyLiveNodeOptions();
         }
 
         public bool TryGetAuthorityMetrics(out NetLitePeerMetrics metrics)
@@ -238,15 +339,15 @@ namespace Validosik.Core.NetLite.Unity
         {
             ResetReconnectTracking();
             SetReconnectState(NetLiteReconnectState.Disabled);
-            return PrepareNode(role, true, Math.Max(0, _startup.ListenPort));
+            return PrepareNode(role, true, Math.Max(0, Startup.ListenPort));
         }
 
         private bool PrepareNode(NetworkRole role, bool isTickAuthority, int port)
         {
-            EnsureConfigs();
+            ResolveComponents(createIfMissing: true);
             if (Role == role && Node != null && Node.IsRunning)
             {
-                ApplyRuntimeDebugConfig();
+                ApplyLiveNodeOptions();
                 return true;
             }
 
@@ -255,7 +356,7 @@ namespace Validosik.Core.NetLite.Unity
                 Stop();
             }
 
-            var node = new NetLiteNode(isTickAuthority, _startup.ToOptions(_runtimeDebug));
+            var node = new NetLiteNode(isTickAuthority, Startup.ToOptions(RuntimeDebug, Reconnect));
             node.ConnectionApproval = _connectionApproval;
             SubscribeNode(node);
 
@@ -269,11 +370,12 @@ namespace Validosik.Core.NetLite.Unity
             Node = node;
             Role = role;
             _sessionEstablished = false;
-            ApplyRuntimeDebugConfig();
+            ApplyLiveNodeOptions();
             OnRoleChanged?.Invoke(Role);
             OnNodeCreated?.Invoke(node);
             return true;
         }
+
         private void SubscribeNode(NetLiteNode node)
         {
             node.OnSessionEstablished += HandleSessionEstablished;
@@ -297,7 +399,7 @@ namespace Validosik.Core.NetLite.Unity
             _sessionEstablished = true;
             _nextReconnectAt = -1f;
             _reconnectCyclesStarted = 0;
-            SetReconnectState(_reconnect.Enabled && Role == NetworkRole.Client
+            SetReconnectState(Reconnect.Enabled && Role == NetworkRole.Client
                 ? NetLiteReconnectState.Idle
                 : NetLiteReconnectState.Disabled);
             OnSessionEstablished?.Invoke(info);
@@ -312,14 +414,14 @@ namespace Validosik.Core.NetLite.Unity
 
         private void HandleTransportPeerDisconnected(NetPeer peer, DisconnectInfo disconnectInfo)
         {
-            if (_stopping || Role != NetworkRole.Client || !_reconnect.Enabled || Node == null || !Node.IsRunning)
+            if (_stopping || Role != NetworkRole.Client || !Reconnect.Enabled || Node == null || !Node.IsRunning)
             {
                 return;
             }
 
             var hadSession = _sessionEstablished;
             _sessionEstablished = false;
-            ScheduleReconnect(hadSession ? _reconnect.InitialDelaySeconds : _reconnect.RetryDelaySeconds);
+            ScheduleReconnect(hadSession ? Reconnect.InitialDelaySeconds : Reconnect.RetryDelaySeconds);
         }
 
         private void UpdateReconnectLoop()
@@ -337,9 +439,9 @@ namespace Validosik.Core.NetLite.Unity
 
         private bool TryConnectCycle()
         {
-            if (Node == null || !Node.IsRunning || !_remote.IsConfigured)
+            if (Node == null || !Node.IsRunning || !Remote.IsConfigured)
             {
-                if (_reconnect.Enabled)
+                if (Reconnect.Enabled)
                 {
                     SetReconnectState(NetLiteReconnectState.Failed);
                 }
@@ -347,13 +449,13 @@ namespace Validosik.Core.NetLite.Unity
                 return false;
             }
 
-            if (_reconnect.Enabled && _reconnect.MaxReconnectCycles > 0 && _reconnectCyclesStarted >= _reconnect.MaxReconnectCycles)
+            if (Reconnect.Enabled && Reconnect.MaxReconnectCycles > 0 && _reconnectCyclesStarted >= Reconnect.MaxReconnectCycles)
             {
                 SetReconnectState(NetLiteReconnectState.Failed);
                 return false;
             }
 
-            if (_reconnect.Enabled)
+            if (Reconnect.Enabled)
             {
                 ++_reconnectCyclesStarted;
                 SetReconnectState(NetLiteReconnectState.Connecting);
@@ -364,15 +466,15 @@ namespace Validosik.Core.NetLite.Unity
             }
 
             _nextReconnectAt = -1f;
-            var peer = Node.Connect(_remote.Host, _remote.Port, BuildConnectOptions());
+            var peer = Node.Connect(Remote.Host, Remote.Port, BuildConnectOptions());
             if (peer != null)
             {
                 return true;
             }
 
-            if (_reconnect.Enabled)
+            if (Reconnect.Enabled)
             {
-                ScheduleReconnect(_reconnect.RetryDelaySeconds);
+                ScheduleReconnect(Reconnect.RetryDelaySeconds);
             }
 
             return false;
@@ -380,13 +482,13 @@ namespace Validosik.Core.NetLite.Unity
 
         private void ScheduleReconnect(float delaySeconds)
         {
-            if (!_reconnect.Enabled)
+            if (!Reconnect.Enabled)
             {
                 SetReconnectState(NetLiteReconnectState.Disabled);
                 return;
             }
 
-            if (_reconnect.MaxReconnectCycles > 0 && _reconnectCyclesStarted >= _reconnect.MaxReconnectCycles)
+            if (Reconnect.MaxReconnectCycles > 0 && _reconnectCyclesStarted >= Reconnect.MaxReconnectCycles)
             {
                 SetReconnectState(NetLiteReconnectState.Failed);
                 return;
@@ -401,32 +503,29 @@ namespace Validosik.Core.NetLite.Unity
             var requestedPlayerId = PlayerId.None;
             var reconnectToken = Guid.Empty;
 
-            if (_remote.UseStoredReconnectIdentity && Node != null && Node.LocalReconnectToken != Guid.Empty)
+            if (Remote.UseStoredReconnectIdentity && Node != null && Node.LocalReconnectToken != Guid.Empty)
             {
                 requestedPlayerId = Node.LocalPlayerId;
                 reconnectToken = Node.LocalReconnectToken;
             }
-            else if (_remote.RequestedPlayerId != PlayerId.None.Value)
+            else if (Remote.RequestedPlayerId != PlayerId.None.Value)
             {
-                requestedPlayerId = new PlayerId(_remote.RequestedPlayerId);
+                requestedPlayerId = new PlayerId(Remote.RequestedPlayerId);
             }
 
             return new NetLiteConnectOptions(requestedPlayerId, reconnectToken);
         }
 
-        private void ApplyRuntimeDebugConfig()
+        private void ApplyLiveNodeOptions()
         {
             if (Node == null)
             {
                 return;
             }
 
-            Node.ApplyNetworkSimulation(
-                _runtimeDebug.SimulateLatency,
-                _runtimeDebug.MinLatencyMs,
-                _runtimeDebug.MaxLatencyMs,
-                _runtimeDebug.SimulatePacketLoss,
-                _runtimeDebug.PacketLossPercent);
+            Startup.ApplyTo(Node);
+            Reconnect.ApplyTo(Node);
+            RuntimeDebug.ApplyTo(Node);
         }
 
         private void ResetReconnectTracking()
@@ -447,14 +546,66 @@ namespace Validosik.Core.NetLite.Unity
             OnReconnectStateChanged?.Invoke(state);
         }
 
-        private void EnsureConfigs()
+        private void ResolveComponents(bool createIfMissing = false)
         {
-            _startup ??= new NetLiteStartupConfig();
-            _remote ??= new NetLiteRemoteEndpointConfig();
-            _runtimeDebug ??= new NetLiteRuntimeDebugConfig();
-            _reconnect ??= new NetLiteReconnectConfig();
+            _runner = ResolveComponent(_runner, createIfMissing);
+            _startup = ResolveComponent(_startup, createIfMissing);
+            _remote = ResolveComponent(_remote, createIfMissing);
+            _runtimeDebug = ResolveComponent(_runtimeDebug, createIfMissing);
+            _reconnect = ResolveComponent(_reconnect, createIfMissing);
+        }
+
+        private void MigrateLegacySettingsIfNeeded()
+        {
+            if (_legacySettingsMigrated)
+            {
+                return;
+            }
+
+            ResolveComponents(createIfMissing: true);
+            _runner.StartRole = _legacyAutoStart ? _legacyAutoStartRole : NetworkRole.None;
+            _runner.AutoUpdateNode = _legacyAutoUpdateNode;
+            _runner.UseUnscaledTime = _legacyUseUnscaledTime;
+
+            _startup.Apply(_legacyStartup);
+            _remote.Apply(_legacyRemote);
+            _runtimeDebug.Apply(_legacyRuntimeDebug);
+            _reconnect.Apply(_legacyReconnect);
+
+            if (_legacyStartup.TryGetLegacyReconnectOverrides(out var legacyReconnectDelayMs, out var legacyMaxConnectAttempts))
+            {
+                _reconnect.TransportReconnectDelayMs = legacyReconnectDelayMs;
+                _reconnect.TransportMaxConnectAttempts = legacyMaxConnectAttempts;
+            }
+
+            _legacySettingsMigrated = true;
+        }
+
+        private T ResolveComponent<T>(T current, bool createIfMissing) where T : Component
+        {
+            if (current != null && current.gameObject == gameObject)
+            {
+                return current;
+            }
+
+            if (TryGetComponent(out T component))
+            {
+                return component;
+            }
+
+            if (!createIfMissing)
+            {
+                return null;
+            }
+
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                return Undo.AddComponent<T>(gameObject);
+            }
+#endif
+
+            return gameObject.AddComponent<T>();
         }
     }
 }
-
-

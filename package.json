@@ -7,6 +7,7 @@
   "dependencies": {
     "validosik.core.netlite": "0.0.1",
     "validosik.core.netlite.simulation": "0.0.1",
+    "com.unity.ugui": "1.0.0",
     "com.revenantx.litenetlib": "2.1.2"
   }
 }

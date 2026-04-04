@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 using UnityEngine;
-using Validosik.Core.NetLite.Session;
+using UnityEngine.Serialization;
 using Validosik.Core.NetLite.Types;
 
 namespace Validosik.Core.NetLite.Unity
@@ -19,9 +19,13 @@ namespace Validosik.Core.NetLite.Unity
         public bool EnableTickSync = true;
         public int TickSnapThreshold = 1;
         public int DisconnectTimeoutMs = 5000;
-        public int ReconnectDelayMs = 500;
-        public int MaxConnectAttempts = 10;
         public bool AllowPeerAddressChange;
+
+        [HideInInspector, FormerlySerializedAs("ReconnectDelayMs")]
+        public int LegacyReconnectDelayMs = 500;
+
+        [HideInInspector, FormerlySerializedAs("MaxConnectAttempts")]
+        public int LegacyMaxConnectAttempts = 10;
 
         public void CopyFrom(NetLiteStartupConfig other)
         {
@@ -41,34 +45,16 @@ namespace Validosik.Core.NetLite.Unity
             EnableTickSync = other.EnableTickSync;
             TickSnapThreshold = other.TickSnapThreshold;
             DisconnectTimeoutMs = other.DisconnectTimeoutMs;
-            ReconnectDelayMs = other.ReconnectDelayMs;
-            MaxConnectAttempts = other.MaxConnectAttempts;
             AllowPeerAddressChange = other.AllowPeerAddressChange;
+            LegacyReconnectDelayMs = other.LegacyReconnectDelayMs;
+            LegacyMaxConnectAttempts = other.LegacyMaxConnectAttempts;
         }
 
-        internal NetLiteOptions ToOptions(NetLiteRuntimeDebugConfig runtimeDebug)
+        internal bool TryGetLegacyReconnectOverrides(out int reconnectDelayMs, out int maxConnectAttempts)
         {
-            runtimeDebug ??= new NetLiteRuntimeDebugConfig();
-            return new NetLiteOptions
-            {
-                ConnectionKey = ConnectionKey ?? string.Empty,
-                SessionId = SessionId,
-                AdvertisedPlayerId = new PlayerId(AdvertisedPlayerId),
-                TickRate = Math.Max(1, TickRate),
-                TickSyncInterval = Math.Max(1, TickSyncInterval),
-                EnableTickSystem = EnableTickSystem,
-                EnableTickSync = EnableTickSync,
-                TickSnapThreshold = Math.Max(0, TickSnapThreshold),
-                DisconnectTimeoutMs = Math.Max(1000, DisconnectTimeoutMs),
-                ReconnectDelayMs = Math.Max(0, ReconnectDelayMs),
-                MaxConnectAttempts = Math.Max(1, MaxConnectAttempts),
-                AllowPeerAddressChange = AllowPeerAddressChange,
-                SimulateLatency = runtimeDebug.SimulateLatency,
-                SimulationMinLatencyMs = Math.Max(0, runtimeDebug.MinLatencyMs),
-                SimulationMaxLatencyMs = Math.Max(Math.Max(0, runtimeDebug.MinLatencyMs), runtimeDebug.MaxLatencyMs),
-                SimulatePacketLoss = runtimeDebug.SimulatePacketLoss,
-                SimulationPacketLossChancePercent = Mathf.Clamp(runtimeDebug.PacketLossPercent, 0, 100)
-            };
+            reconnectDelayMs = Math.Max(0, LegacyReconnectDelayMs);
+            maxConnectAttempts = Math.Max(1, LegacyMaxConnectAttempts);
+            return LegacyReconnectDelayMs != 500 || LegacyMaxConnectAttempts != 10;
         }
     }
 
@@ -127,6 +113,8 @@ namespace Validosik.Core.NetLite.Unity
         public float InitialDelaySeconds = 0.5f;
         public float RetryDelaySeconds = 1f;
         public int MaxReconnectCycles;
+        public int TransportReconnectDelayMs = 500;
+        public int TransportMaxConnectAttempts = 10;
 
         public void CopyFrom(NetLiteReconnectConfig other)
         {
@@ -139,6 +127,8 @@ namespace Validosik.Core.NetLite.Unity
             InitialDelaySeconds = other.InitialDelaySeconds;
             RetryDelaySeconds = other.RetryDelaySeconds;
             MaxReconnectCycles = other.MaxReconnectCycles;
+            TransportReconnectDelayMs = other.TransportReconnectDelayMs;
+            TransportMaxConnectAttempts = other.TransportMaxConnectAttempts;
         }
     }
 }
