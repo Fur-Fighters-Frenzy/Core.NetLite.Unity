@@ -22,6 +22,7 @@ namespace Validosik.Core.NetLite.Unity
         public int TickSnapThreshold = 1;
         public int DisconnectTimeoutMs = 5000;
         public bool AllowPeerAddressChange;
+        public bool EnablePeerToPeer;
 
         public void Apply(NetLiteStartupConfig other)
         {
@@ -42,6 +43,7 @@ namespace Validosik.Core.NetLite.Unity
             TickSnapThreshold = other.TickSnapThreshold;
             DisconnectTimeoutMs = other.DisconnectTimeoutMs;
             AllowPeerAddressChange = other.AllowPeerAddressChange;
+            EnablePeerToPeer = other.EnablePeerToPeer;
         }
 
         public NetLiteOptions ToOptions(NetLiteBootstrapRuntimeDebug runtimeDebug, NetLiteBootstrapReconnect reconnect)
@@ -63,6 +65,7 @@ namespace Validosik.Core.NetLite.Unity
                 ReconnectDelayMs = reconnect != null ? Math.Max(0, reconnect.TransportReconnectDelayMs) : 500,
                 MaxConnectAttempts = reconnect != null ? Math.Max(1, reconnect.TransportMaxConnectAttempts) : 10,
                 AllowPeerAddressChange = AllowPeerAddressChange,
+                EnablePeerToPeer = EnablePeerToPeer,
                 SimulateLatency = runtimeDebug != null && runtimeDebug.EffectiveSimulateLatency,
                 SimulationMinLatencyMs = runtimeDebug != null ? Math.Max(0, runtimeDebug.EffectiveMinLatencyMs) : 30,
                 SimulationMaxLatencyMs = runtimeDebug != null
@@ -82,8 +85,17 @@ namespace Validosik.Core.NetLite.Unity
                 return;
             }
 
-            node.Options.DisconnectTimeoutMs = Math.Max(1000, DisconnectTimeoutMs);
-            node.Options.AllowPeerAddressChange = AllowPeerAddressChange;
+            if (node.IsTickAuthority || node.AuthorityPlayerId == PlayerId.None)
+            {
+                node.Options.DisconnectTimeoutMs = Math.Max(1000, DisconnectTimeoutMs);
+                node.Options.AllowPeerAddressChange = AllowPeerAddressChange;
+                node.Options.TickRate = Math.Max(1, TickRate);
+                node.Options.TickSyncInterval = Math.Max(1, TickSyncInterval);
+                node.Options.EnableTickSystem = EnableTickSystem;
+                node.Options.EnableTickSync = EnableTickSync;
+                node.Options.TickSnapThreshold = Math.Max(0, TickSnapThreshold);
+                node.Options.EnablePeerToPeer = EnablePeerToPeer;
+            }
         }
     }
 }

@@ -20,6 +20,7 @@ namespace Validosik.Core.NetLite.Unity
         public int TickSnapThreshold = 1;
         public int DisconnectTimeoutMs = 5000;
         public bool AllowPeerAddressChange;
+        public bool EnablePeerToPeer;
 
         [HideInInspector, FormerlySerializedAs("ReconnectDelayMs")]
         public int LegacyReconnectDelayMs = 500;
@@ -46,6 +47,7 @@ namespace Validosik.Core.NetLite.Unity
             TickSnapThreshold = other.TickSnapThreshold;
             DisconnectTimeoutMs = other.DisconnectTimeoutMs;
             AllowPeerAddressChange = other.AllowPeerAddressChange;
+            EnablePeerToPeer = other.EnablePeerToPeer;
             LegacyReconnectDelayMs = other.LegacyReconnectDelayMs;
             LegacyMaxConnectAttempts = other.LegacyMaxConnectAttempts;
         }

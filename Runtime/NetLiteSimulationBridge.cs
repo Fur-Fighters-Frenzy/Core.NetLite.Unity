@@ -111,7 +111,14 @@ namespace Validosik.Core.NetLite.Unity
             }
         }
 
-        private void HandleTick(ushort tick) => Runner?.ExecuteTick(tick);
+        private void HandleTick(ushort tick)
+        {
+            if (Runner != null)
+            {
+                Runner.FixedDelta = GetFixedDelta();
+                Runner.ExecuteTick(tick);
+            }
+        }
 
         private void RebuildRunner(ushort initialTick)
         {
@@ -135,7 +142,11 @@ namespace Validosik.Core.NetLite.Unity
 
         private float GetFixedDelta()
         {
-            var tickRate = _bootstrap != null ? Mathf.Max(1, _bootstrap.Startup.TickRate) : 30;
+            var tickRate = _boundNode != null
+                ? Mathf.Max(1, _boundNode.Options.TickRate)
+                : _bootstrap != null
+                    ? Mathf.Max(1, _bootstrap.Startup.TickRate)
+                    : 30;
             return 1f / tickRate;
         }
 
