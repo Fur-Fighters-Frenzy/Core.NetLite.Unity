@@ -1,0 +1,26 @@
+﻿{
+  "name": "Validosik.Core.NetLite.Unity",
+  "rootNamespace": "Validosik.Core.NetLite.Unity",
+  "references": [
+    "Validosik.Core.NetLite",
+    "Validosik.Core.NetLite.Simulation",
+    "LiteNetLib"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [
+    "LITENETLIB_ENABLED"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.revenantx.litenetlib",
+      "expression": "2.1.2",
+      "define": "LITENETLIB_ENABLED"
+    }
+  ],
+  "noEngineReferences": false
+}

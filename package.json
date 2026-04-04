@@ -1,0 +1,12 @@
+﻿{
+  "name": "validosik.core.netlite.unity",
+  "displayName": "Core NetLite Unity",
+  "version": "0.0.1",
+  "unity": "2021.2",
+  "description": "Unity bootstrap, reconnect and debug layer for Validosik.Core.NetLite.",
+  "dependencies": {
+    "validosik.core.netlite": "0.0.1",
+    "validosik.core.netlite.simulation": "0.0.1",
+    "com.revenantx.litenetlib": "2.1.2"
+  }
+}
