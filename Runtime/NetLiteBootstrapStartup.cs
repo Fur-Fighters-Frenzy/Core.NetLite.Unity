@@ -23,6 +23,11 @@ namespace Validosik.Core.NetLite.Unity
         public int DisconnectTimeoutMs = 5000;
         public bool AllowPeerAddressChange;
         public bool EnablePeerToPeer;
+        public bool EnableNatPunch = true;
+        public bool EnablePeerRelayFallback = true;
+        public int PeerDirectConnectTimeoutMs = 1500;
+        public int PeerDirectRetryIntervalMs = 3000;
+        public int NatPunchRequestIntervalMs = 250;
 
         public void Apply(NetLiteStartupConfig other)
         {
@@ -44,6 +49,11 @@ namespace Validosik.Core.NetLite.Unity
             DisconnectTimeoutMs = other.DisconnectTimeoutMs;
             AllowPeerAddressChange = other.AllowPeerAddressChange;
             EnablePeerToPeer = other.EnablePeerToPeer;
+            EnableNatPunch = other.EnableNatPunch;
+            EnablePeerRelayFallback = other.EnablePeerRelayFallback;
+            PeerDirectConnectTimeoutMs = other.PeerDirectConnectTimeoutMs;
+            PeerDirectRetryIntervalMs = other.PeerDirectRetryIntervalMs;
+            NatPunchRequestIntervalMs = other.NatPunchRequestIntervalMs;
         }
 
         public NetLiteOptions ToOptions(NetLiteBootstrapRuntimeDebug runtimeDebug, NetLiteBootstrapReconnect reconnect)
@@ -66,6 +76,11 @@ namespace Validosik.Core.NetLite.Unity
                 MaxConnectAttempts = reconnect != null ? Math.Max(1, reconnect.TransportMaxConnectAttempts) : 10,
                 AllowPeerAddressChange = AllowPeerAddressChange,
                 EnablePeerToPeer = EnablePeerToPeer,
+                EnableNatPunch = EnableNatPunch,
+                EnablePeerRelayFallback = EnablePeerRelayFallback,
+                PeerDirectConnectTimeoutMs = Math.Max(250, PeerDirectConnectTimeoutMs),
+                PeerDirectRetryIntervalMs = Math.Max(250, PeerDirectRetryIntervalMs),
+                NatPunchRequestIntervalMs = Math.Max(50, NatPunchRequestIntervalMs),
                 SimulateLatency = runtimeDebug != null && runtimeDebug.EffectiveSimulateLatency,
                 SimulationMinLatencyMs = runtimeDebug != null ? Math.Max(0, runtimeDebug.EffectiveMinLatencyMs) : 30,
                 SimulationMaxLatencyMs = runtimeDebug != null
@@ -95,6 +110,11 @@ namespace Validosik.Core.NetLite.Unity
                 node.Options.EnableTickSync = EnableTickSync;
                 node.Options.TickSnapThreshold = Math.Max(0, TickSnapThreshold);
                 node.Options.EnablePeerToPeer = EnablePeerToPeer;
+                node.Options.EnableNatPunch = EnableNatPunch;
+                node.Options.EnablePeerRelayFallback = EnablePeerRelayFallback;
+                node.Options.PeerDirectConnectTimeoutMs = Math.Max(250, PeerDirectConnectTimeoutMs);
+                node.Options.PeerDirectRetryIntervalMs = Math.Max(250, PeerDirectRetryIntervalMs);
+                node.Options.NatPunchRequestIntervalMs = Math.Max(50, NatPunchRequestIntervalMs);
             }
         }
     }

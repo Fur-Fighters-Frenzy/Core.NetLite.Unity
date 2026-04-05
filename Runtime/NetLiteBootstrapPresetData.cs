@@ -21,6 +21,11 @@ namespace Validosik.Core.NetLite.Unity
         public int DisconnectTimeoutMs = 5000;
         public bool AllowPeerAddressChange;
         public bool EnablePeerToPeer;
+        public bool EnableNatPunch = true;
+        public bool EnablePeerRelayFallback = true;
+        public int PeerDirectConnectTimeoutMs = 1500;
+        public int PeerDirectRetryIntervalMs = 3000;
+        public int NatPunchRequestIntervalMs = 250;
 
         [HideInInspector, FormerlySerializedAs("ReconnectDelayMs")]
         public int LegacyReconnectDelayMs = 500;
@@ -48,6 +53,11 @@ namespace Validosik.Core.NetLite.Unity
             DisconnectTimeoutMs = other.DisconnectTimeoutMs;
             AllowPeerAddressChange = other.AllowPeerAddressChange;
             EnablePeerToPeer = other.EnablePeerToPeer;
+            EnableNatPunch = other.EnableNatPunch;
+            EnablePeerRelayFallback = other.EnablePeerRelayFallback;
+            PeerDirectConnectTimeoutMs = other.PeerDirectConnectTimeoutMs;
+            PeerDirectRetryIntervalMs = other.PeerDirectRetryIntervalMs;
+            NatPunchRequestIntervalMs = other.NatPunchRequestIntervalMs;
             LegacyReconnectDelayMs = other.LegacyReconnectDelayMs;
             LegacyMaxConnectAttempts = other.LegacyMaxConnectAttempts;
         }
