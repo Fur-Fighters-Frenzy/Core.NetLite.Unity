@@ -1,10 +1,9 @@
-﻿namespace Validosik.Core.NetLite.Unity
+namespace Validosik.Core.NetLite.Unity
 {
     public enum NetworkRole : byte
     {
-        None,
-        Client,
-        Server,
-        Host
+        None = 0,
+        Client = 1,
+        Host = 3
     }
 }

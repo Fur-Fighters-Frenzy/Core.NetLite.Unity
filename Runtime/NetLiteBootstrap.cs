@@ -212,15 +212,12 @@ namespace Validosik.Core.NetLite.Unity
             return role switch
             {
                 NetworkRole.Host => StartAuthorityRole(NetworkRole.Host),
-                NetworkRole.Server => StartAuthorityRole(NetworkRole.Server),
                 NetworkRole.Client => StartClient(),
                 _ => false
             };
         }
 
         public bool StartHost() => StartAuthorityRole(NetworkRole.Host);
-
-        public bool StartServer() => StartAuthorityRole(NetworkRole.Server);
 
         public bool StartClient()
         {
@@ -309,6 +306,21 @@ namespace Validosik.Core.NetLite.Unity
         {
             ResolveComponents(createIfMissing: true);
             _runtimeDebug.Apply(config);
+            ApplyLiveNodeOptions();
+        }
+
+        public void SetLatencySimulation(bool enabled, int minLatencyMs, int maxLatencyMs)
+        {
+            RuntimeDebug.SimulateLatency = enabled;
+            RuntimeDebug.MinLatencyMs = minLatencyMs;
+            RuntimeDebug.MaxLatencyMs = maxLatencyMs;
+            ApplyLiveNodeOptions();
+        }
+
+        public void SetPacketLossSimulation(bool enabled, int packetLossPercent)
+        {
+            RuntimeDebug.SimulatePacketLoss = enabled;
+            RuntimeDebug.PacketLossPercent = packetLossPercent;
             ApplyLiveNodeOptions();
         }
 
