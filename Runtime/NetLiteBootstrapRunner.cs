@@ -10,8 +10,17 @@ namespace Validosik.Core.NetLite.Unity
         public bool AutoUpdateNode = true;
         public bool UseUnscaledTime = true;
 
+        public NetworkRole EffectiveStartRole =>
+            StartRole == NetworkRole.Client
+                ? NetworkRole.Client
+                : StartRole == NetworkRole.None
+                    ? NetworkRole.None
+                    : NetworkRole.Host;
+
         public bool ShouldAutoStart => EffectiveStartRole != NetworkRole.None;
 
         public float GetDeltaTime() => UseUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
+
+        private void OnValidate() => StartRole = EffectiveStartRole;
     }
 }

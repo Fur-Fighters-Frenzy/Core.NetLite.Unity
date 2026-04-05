@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 using Validosik.Core.NetLite.Types;
 
 namespace Validosik.Core.NetLite.Unity
@@ -27,12 +26,6 @@ namespace Validosik.Core.NetLite.Unity
         public int PeerDirectRetryIntervalMs = 3000;
         public int NatPunchRequestIntervalMs = 250;
 
-        [HideInInspector, FormerlySerializedAs("ReconnectDelayMs")]
-        public int LegacyReconnectDelayMs = 500;
-
-        [HideInInspector, FormerlySerializedAs("MaxConnectAttempts")]
-        public int LegacyMaxConnectAttempts = 10;
-
         public void CopyFrom(NetLiteStartupConfig other)
         {
             if (other == null)
@@ -58,15 +51,6 @@ namespace Validosik.Core.NetLite.Unity
             PeerDirectConnectTimeoutMs = other.PeerDirectConnectTimeoutMs;
             PeerDirectRetryIntervalMs = other.PeerDirectRetryIntervalMs;
             NatPunchRequestIntervalMs = other.NatPunchRequestIntervalMs;
-            LegacyReconnectDelayMs = other.LegacyReconnectDelayMs;
-            LegacyMaxConnectAttempts = other.LegacyMaxConnectAttempts;
-        }
-
-        internal bool TryGetLegacyReconnectOverrides(out int reconnectDelayMs, out int maxConnectAttempts)
-        {
-            reconnectDelayMs = Math.Max(0, LegacyReconnectDelayMs);
-            maxConnectAttempts = Math.Max(1, LegacyMaxConnectAttempts);
-            return LegacyReconnectDelayMs != 500 || LegacyMaxConnectAttempts != 10;
         }
     }
 
@@ -118,27 +102,8 @@ namespace Validosik.Core.NetLite.Unity
     public sealed class NetLiteRuntimeDebugConfig
     {
         public bool EnablePresetOneOnStart;
-
-        [FormerlySerializedAs("DelayPresetF4")]
         public NetLiteLatencyHotkeyConfig PresetF4 = new();
-
-        [FormerlySerializedAs("DelayPresetF5")]
         public NetLiteLatencyHotkeyConfig PresetF5 = new() { MinLatencyMs = 250, MaxLatencyMs = 250 };
-
-        [HideInInspector, FormerlySerializedAs("SimulateLatency")]
-        public bool LegacySimulateLatency;
-
-        [HideInInspector, FormerlySerializedAs("MinLatencyMs")]
-        public int LegacyMinLatencyMs = 30;
-
-        [HideInInspector, FormerlySerializedAs("MaxLatencyMs")]
-        public int LegacyMaxLatencyMs = 100;
-
-        [HideInInspector, FormerlySerializedAs("SimulatePacketLoss")]
-        public bool LegacySimulatePacketLoss;
-
-        [HideInInspector, FormerlySerializedAs("PacketLossPercent")]
-        public int LegacyPacketLossPercent = 10;
 
         public void CopyFrom(NetLiteRuntimeDebugConfig other)
         {
@@ -151,40 +116,6 @@ namespace Validosik.Core.NetLite.Unity
             EnablePresetOneOnStart = other.EnablePresetOneOnStart;
             PresetF4.CopyFrom(other.PresetF4);
             PresetF5.CopyFrom(other.PresetF5);
-
-            if (!other.TryGetLegacyPresetOneOverride(out var legacyPreset, out var enableOnStart))
-            {
-                return;
-            }
-
-            PresetF4.CopyFrom(legacyPreset);
-            if (enableOnStart)
-            {
-                EnablePresetOneOnStart = true;
-            }
-        }
-
-        internal bool TryGetLegacyPresetOneOverride(out NetLiteLatencyHotkeyConfig preset, out bool enableOnStart)
-        {
-            preset = null;
-            enableOnStart = LegacySimulateLatency || LegacySimulatePacketLoss;
-            var hasLegacyValues = enableOnStart
-                || LegacyMinLatencyMs != 30
-                || LegacyMaxLatencyMs != 100
-                || LegacyPacketLossPercent != 10;
-
-            if (!hasLegacyValues)
-            {
-                return false;
-            }
-
-            preset = new NetLiteLatencyHotkeyConfig
-            {
-                MinLatencyMs = LegacyMinLatencyMs,
-                MaxLatencyMs = LegacyMaxLatencyMs,
-                PacketLossPercent = LegacyPacketLossPercent
-            };
-            return true;
         }
 
         private void EnsureDelayPresets()

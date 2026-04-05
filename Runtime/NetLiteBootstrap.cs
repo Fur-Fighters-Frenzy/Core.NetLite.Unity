@@ -1,7 +1,6 @@
 using System;
 using LiteNetLib;
 using UnityEngine;
-using UnityEngine.Serialization;
 using Validosik.Core.NetLite;
 using Validosik.Core.NetLite.Session;
 using Validosik.Core.NetLite.Stats;
@@ -23,32 +22,6 @@ namespace Validosik.Core.NetLite.Unity
     public sealed class NetLiteBootstrap : MonoBehaviour
     {
         [SerializeField] private NetLiteBootstrapPreset _preset;
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("_autoStart")]
-        private bool _legacyAutoStart = true;
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("_autoStartRole")]
-        private NetworkRole _legacyAutoStartRole = NetworkRole.Host;
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("_autoUpdateNode")]
-        private bool _legacyAutoUpdateNode = true;
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("_useUnscaledTime")]
-        private bool _legacyUseUnscaledTime = true;
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("_startup")]
-        private NetLiteStartupConfig _legacyStartup = new();
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("_remote")]
-        private NetLiteRemoteEndpointConfig _legacyRemote = new();
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("_runtimeDebug")]
-        private NetLiteRuntimeDebugConfig _legacyRuntimeDebug = new();
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("_reconnect")]
-        private NetLiteReconnectConfig _legacyReconnect = new();
-
-        [SerializeField, HideInInspector] private bool _legacySettingsMigrated;
 
         private NetLiteBootstrapRunner _runner;
         private NetLiteBootstrapStartup _startup;
@@ -138,13 +111,11 @@ namespace Validosik.Core.NetLite.Unity
         private void Reset()
         {
             ResolveComponents(createIfMissing: true);
-            MigrateLegacySettingsIfNeeded();
         }
 
         private void Awake()
         {
             ResolveComponents(createIfMissing: true);
-            MigrateLegacySettingsIfNeeded();
             if (_preset != null)
             {
                 ApplyPreset();
@@ -155,7 +126,7 @@ namespace Validosik.Core.NetLite.Unity
         {
             if (Runner.ShouldAutoStart)
             {
-                StartRole(Runner.StartRole);
+                StartRole(Runner.EffectiveStartRole);
             }
         }
 
@@ -180,7 +151,6 @@ namespace Validosik.Core.NetLite.Unity
         private void OnValidate()
         {
             ResolveComponents(createIfMissing: true);
-            MigrateLegacySettingsIfNeeded();
         }
 #endif
 
@@ -198,18 +168,12 @@ namespace Validosik.Core.NetLite.Unity
             _runtimeDebug.Apply(_preset.RuntimeDebug);
             _reconnect.Apply(_preset.Reconnect);
 
-            if (startupPreset != null && startupPreset.TryGetLegacyReconnectOverrides(out var legacyReconnectDelayMs, out var legacyMaxConnectAttempts))
-            {
-                _reconnect.TransportReconnectDelayMs = legacyReconnectDelayMs;
-                _reconnect.TransportMaxConnectAttempts = legacyMaxConnectAttempts;
-            }
-
             ApplyLiveNodeOptions();
         }
 
         public bool StartRole(NetworkRole role)
         {
-            return role switch
+            return NormalizeRole(role) switch
             {
                 NetworkRole.Host => StartAuthorityRole(NetworkRole.Host),
                 NetworkRole.Client => StartClient(),
@@ -311,16 +275,18 @@ namespace Validosik.Core.NetLite.Unity
 
         public void SetLatencySimulation(bool enabled, int minLatencyMs, int maxLatencyMs)
         {
-            RuntimeDebug.SimulateLatency = enabled;
-            RuntimeDebug.MinLatencyMs = minLatencyMs;
-            RuntimeDebug.MaxLatencyMs = maxLatencyMs;
+            RuntimeDebug.PresetF4.MinLatencyMs = enabled ? minLatencyMs : 0;
+            RuntimeDebug.PresetF4.MaxLatencyMs = enabled ? maxLatencyMs : 0;
+            SyncPresetOneActivation();
+
             ApplyLiveNodeOptions();
         }
 
         public void SetPacketLossSimulation(bool enabled, int packetLossPercent)
         {
-            RuntimeDebug.SimulatePacketLoss = enabled;
-            RuntimeDebug.PacketLossPercent = packetLossPercent;
+            RuntimeDebug.PresetF4.PacketLossPercent = enabled ? packetLossPercent : 0;
+            SyncPresetOneActivation();
+
             ApplyLiveNodeOptions();
         }
 
@@ -552,32 +518,6 @@ namespace Validosik.Core.NetLite.Unity
             _reconnect = ResolveComponent(_reconnect, createIfMissing);
         }
 
-        private void MigrateLegacySettingsIfNeeded()
-        {
-            if (_legacySettingsMigrated)
-            {
-                return;
-            }
-
-            ResolveComponents(createIfMissing: true);
-            _runner.StartRole = _legacyAutoStart ? _legacyAutoStartRole : NetworkRole.None;
-            _runner.AutoUpdateNode = _legacyAutoUpdateNode;
-            _runner.UseUnscaledTime = _legacyUseUnscaledTime;
-
-            _startup.Apply(_legacyStartup);
-            _remote.Apply(_legacyRemote);
-            _runtimeDebug.Apply(_legacyRuntimeDebug);
-            _reconnect.Apply(_legacyReconnect);
-
-            if (_legacyStartup.TryGetLegacyReconnectOverrides(out var legacyReconnectDelayMs, out var legacyMaxConnectAttempts))
-            {
-                _reconnect.TransportReconnectDelayMs = legacyReconnectDelayMs;
-                _reconnect.TransportMaxConnectAttempts = legacyMaxConnectAttempts;
-            }
-
-            _legacySettingsMigrated = true;
-        }
-
         private T ResolveComponent<T>(T current, bool createIfMissing) where T : Component
         {
             if (current != null && current.gameObject == gameObject)
@@ -603,6 +543,32 @@ namespace Validosik.Core.NetLite.Unity
 #endif
 
             return gameObject.AddComponent<T>();
+        }
+
+        private static NetworkRole NormalizeRole(NetworkRole role) =>
+            role == NetworkRole.Client
+                ? NetworkRole.Client
+                : role == NetworkRole.None
+                    ? NetworkRole.None
+                    : NetworkRole.Host;
+
+        private void SyncPresetOneActivation()
+        {
+            var shouldEnablePreset = RuntimeDebug.PresetF4.MaxLatencyMs > 0 || RuntimeDebug.PresetF4.PacketLossPercent > 0;
+            if (shouldEnablePreset)
+            {
+                if (RuntimeDebug.ActivePresetLabel != "F4")
+                {
+                    RuntimeDebug.TogglePresetOne();
+                }
+
+                return;
+            }
+
+            if (RuntimeDebug.ActivePresetLabel == "F4")
+            {
+                RuntimeDebug.DisablePreset();
+            }
         }
     }
 }

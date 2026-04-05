@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Serialization;
 using Validosik.Core.NetLite;
 
 namespace Validosik.Core.NetLite.Unity
@@ -18,28 +17,9 @@ namespace Validosik.Core.NetLite.Unity
 
         public bool EnablePresetOneOnStart;
 
-        [FormerlySerializedAs("DelayPresetF4")]
         public NetLiteLatencyHotkeyConfig PresetF4 = new();
 
-        [FormerlySerializedAs("DelayPresetF5")]
         public NetLiteLatencyHotkeyConfig PresetF5 = new() { MinLatencyMs = 250, MaxLatencyMs = 250 };
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("SimulateLatency")]
-        private bool _legacySimulateLatency;
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("MinLatencyMs")]
-        private int _legacyMinLatencyMs = 30;
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("MaxLatencyMs")]
-        private int _legacyMaxLatencyMs = 100;
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("SimulatePacketLoss")]
-        private bool _legacySimulatePacketLoss;
-
-        [SerializeField, HideInInspector, FormerlySerializedAs("PacketLossPercent")]
-        private int _legacyPacketLossPercent = 10;
-
-        [SerializeField, HideInInspector] private bool _legacySettingsMigrated;
 
         private DebugPresetSlot _activePreset;
 
@@ -65,21 +45,18 @@ namespace Validosik.Core.NetLite.Unity
         private void Reset()
         {
             EnsurePresetConfigs();
-            MigrateLegacySettingsIfNeeded();
         }
 
 #if UNITY_EDITOR
         private void OnValidate()
         {
             EnsurePresetConfigs();
-            MigrateLegacySettingsIfNeeded();
         }
 #endif
 
         private void OnEnable()
         {
             EnsurePresetConfigs();
-            MigrateLegacySettingsIfNeeded();
             if (EnablePresetOneOnStart && _activePreset == DebugPresetSlot.None)
             {
                 _activePreset = DebugPresetSlot.F4;
@@ -110,15 +87,6 @@ namespace Validosik.Core.NetLite.Unity
             EnablePresetOneOnStart = other.EnablePresetOneOnStart;
             PresetF4.CopyFrom(other.PresetF4);
             PresetF5.CopyFrom(other.PresetF5);
-
-            if (other.TryGetLegacyPresetOneOverride(out var legacyPreset, out var enableOnStart))
-            {
-                PresetF4.CopyFrom(legacyPreset);
-                if (enableOnStart)
-                {
-                    EnablePresetOneOnStart = true;
-                }
-            }
 
             _activePreset = EnablePresetOneOnStart
                 ? DebugPresetSlot.F4
@@ -171,35 +139,6 @@ namespace Validosik.Core.NetLite.Unity
         {
             PresetF4 ??= new NetLiteLatencyHotkeyConfig();
             PresetF5 ??= new NetLiteLatencyHotkeyConfig { MinLatencyMs = 250, MaxLatencyMs = 250 };
-        }
-
-        private void MigrateLegacySettingsIfNeeded()
-        {
-            if (_legacySettingsMigrated)
-            {
-                return;
-            }
-
-            EnsurePresetConfigs();
-            var hasLegacyValues = _legacySimulateLatency
-                || _legacySimulatePacketLoss
-                || _legacyMinLatencyMs != 30
-                || _legacyMaxLatencyMs != 100
-                || _legacyPacketLossPercent != 10;
-
-            if (hasLegacyValues)
-            {
-                PresetF4.MinLatencyMs = _legacyMinLatencyMs;
-                PresetF4.MaxLatencyMs = _legacyMaxLatencyMs;
-                PresetF4.PacketLossPercent = _legacyPacketLossPercent;
-                if (_legacySimulateLatency || _legacySimulatePacketLoss)
-                {
-                    EnablePresetOneOnStart = true;
-                    _activePreset = DebugPresetSlot.F4;
-                }
-            }
-
-            _legacySettingsMigrated = true;
         }
     }
 }
