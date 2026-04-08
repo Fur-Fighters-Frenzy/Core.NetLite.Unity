@@ -383,6 +383,17 @@ namespace Validosik.Core.NetLite.Unity
             }
 
             var hadSession = _sessionEstablished;
+            var hasDisconnectedPlayer = Node.TryGetPlayerId(peer, out var disconnectedPlayerId);
+            if (hasDisconnectedPlayer && disconnectedPlayerId != Node.AuthorityPlayerId)
+            {
+                return;
+            }
+
+            if (hadSession && !hasDisconnectedPlayer)
+            {
+                return;
+            }
+
             _sessionEstablished = false;
             ScheduleReconnect(hadSession ? Reconnect.InitialDelaySeconds : Reconnect.RetryDelaySeconds);
         }

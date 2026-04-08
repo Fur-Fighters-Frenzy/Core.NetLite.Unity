@@ -347,7 +347,7 @@ namespace Validosik.Core.NetLite.Unity
 
         private static string FormatActivePresetSummary(NetLiteBootstrapRuntimeDebug runtimeDebug)
         {
-            if (runtimeDebug == null || !runtimeDebug.EffectiveSimulateLatency)
+            if (runtimeDebug == null || !runtimeDebug.HasActivePreset)
             {
                 return "off";
             }
